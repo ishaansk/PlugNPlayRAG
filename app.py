@@ -5,11 +5,21 @@ from vectordb import PineconeDB
 from dotenv import load_dotenv
 import os
 
+# Load environment variables
 load_dotenv()
 db_key = os.getenv('db_api_key')
 embedder_model_name = os.getenv('embedder_model_name')
 llm_model_name = os.getenv('llm_model_name')
 db_name = os.getenv('db_name')
+
+# Initialize LLM instance once at the start
+llm = LLM(model_name="google/flan-t5-base")  # New model
+
+
+# Helper functions
+def read_document(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
 
 def chunk_text(text, chunk_size=300, overlap=50):
     words = text.split()
@@ -19,49 +29,53 @@ def chunk_text(text, chunk_size=300, overlap=50):
         chunks.append(chunk)
     return chunks
 
-def get_response(user_query):
-    with open("sample.txt", "r", encoding="utf-8") as f:
-        raw_text = f.read()
+def build_rag_response(query):
+    try:
+        # Read and chunk the document
+        raw_text = read_document("sample.txt")
+        chunks = chunk_text(raw_text)
 
-    chunks = chunk_text(raw_text)
-    embedder = Embeddings(model_name=embedder_model_name)
-    embeddings = embedder.generate_embeddings(chunks)
+        # Generate embeddings for chunks
+        embedder = Embeddings(model_name=embedder_model_name)
+        embeddings = embedder.generate_embeddings(chunks)
 
-    db = PineconeDB(api_key=db_key, db_name=db_name)
-    vectors = [(f"doc-{i}", emb.tolist(), {"text": chunks[i]}) for i, emb in enumerate(embeddings)]
-    db.upsert(vectors)
+        # Interact with Pinecone DB
+        db = PineconeDB(api_key=db_key, db_name=db_name)
+        vectors = [(f"doc-{i}", emb.tolist(), {"text": chunks[i]}) for i, emb in enumerate(embeddings)]
+        db.upsert(vectors)
 
-    query_embedding = embedder.generate_embeddings([user_query])[0].tolist()
-    results = db.query(vector=query_embedding, top_k=1)
-    matches = results.get("matches", [])
+        # Generate embedding for the query and search Pinecone DB
+        question_embedding = embedder.generate_embeddings([query])[0].tolist()
+        results = db.query(vector=question_embedding, top_k=1)
+        matches = results.get("matches", [])
 
-    if not matches or matches[0].get("score", 0) < 0.15:
-        return "none", "Sorry, I couldn't find anything in the document related to your query."
+        if not matches or matches[0].get("score", 0) < 0.15:
+            return "none", "Sorry, I couldn't find anything in the document related to your query."
+        
+        # Extract the relevant context
+        context = matches[0]["metadata"]["text"]
+        
+        # Ask the LLM to generate a response based on the context and query
+        response = llm.ask(prompt=query, context=context, temperature=0.7, max_tokens=200)
+        return context, response
+    except Exception as e:
+        return "none", f"An error occurred: {str(e)}"
 
-    context = matches[0]["metadata"]["text"]
-    llm = LLM(model_name=llm_model_name)
-    response = llm.ask(
-        prompt=user_query,
-        context=context,
-        temperature=0.9,
-        max_tokens=200
-    )
-    return context, response
+# Streamlit UI
+st.set_page_config(page_title="Plug n Play RAG", layout="centered")
+st.title("🔌 Plug n Play RAG")
+st.markdown("Ask a question based on the document contents!")
 
-st.set_page_config(page_title="RAG Q&A", layout="centered")
-st.title("📄🔍 Ask Your Document")
+# Input for query
+query = st.text_input("Enter your question:")
 
-user_question = st.text_input("Enter your question:")
+if query:
+    with st.spinner("Searching and generating response..."):
+        context, answer = build_rag_response(query)
+    
+    # Display the context and answer
+    st.subheader("🔍 Retrieved Context")
+    st.info(context if context != "none" else "No relevant context found.")
 
-if st.button("Ask") and user_question.strip():
-    with st.spinner("Thinking..."):
-        context, answer = get_response(user_question)
-        st.subheader("Answer")
-        if answer.endswith((".", "...", "!", "?")):
-            st.write(answer)
-        else:
-            st.write(answer + "\n\n(Note: The answer may be incomplete due to token limit.)")
-
-        if context != "none":
-            with st.expander("Show Retrieved Context"):
-                st.write(context)
+    st.subheader("🧠 Answer")
+    st.success(answer)

@@ -1,20 +1,27 @@
-# src/llm.py
+import os
+import requests
+from dotenv import load_dotenv
 
-import ollama
+load_dotenv()
 
 class LLM:
-    def __init__(self, model_name="mistral"):
-        self.model_name = model_name
+    def __init__(self, model_name="google/flan-t5-base"):
+        self.api_key = os.getenv("HF_API_KEY")
+        self.base_url = f"https://api-inference.huggingface.co/models/{model_name}"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
 
-    def ask(self, prompt, context, temperature=0.7, max_tokens=300):
-        full_prompt = f"Context:\n{context}\n\nQuestion:\n{prompt}"
-
-        response = ollama.chat(
-            model=self.model_name,
-            messages=[{"role": "user", "content": full_prompt}],
-            options={
+    def ask(self, prompt, context="", temperature=0.7, max_tokens=500):  # Increase max_tokens here
+        payload = {
+            "inputs": f"{context}\n{prompt}",
+            "parameters": {
                 "temperature": temperature,
-                "num_predict": max_tokens
+                "max_new_tokens": max_tokens
             }
-        )
-        return response['message']['content']
+        }
+
+        response = requests.post(self.base_url, headers=self.headers, json=payload)
+        response.raise_for_status()
+        return response.json()[0]["generated_text"]
