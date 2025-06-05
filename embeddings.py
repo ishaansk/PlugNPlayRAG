@@ -1,16 +1,12 @@
-# src/embeddings.py
-
 from sentence_transformers import SentenceTransformer
 import os
+from dotenv import load_dotenv
+load_dotenv()
+model_name=os.getenv('embedder_model_name')
 
 class Embeddings:
-    def __init__(self, model_name="all-MiniLM-L6-v2"):
-        """
-        Initialize the Embeddings class with a SentenceTransformer model.
-        :param model_name: Name of the pre-trained SentenceTransformer model to use.
-        """
+    def __init__(self, model_name=model_name):
         self.model = SentenceTransformer(model_name)
 
-# embeddings.py
     def generate_embeddings(self, texts):
         return self.model.encode(texts, convert_to_numpy=True)
