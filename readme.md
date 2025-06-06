@@ -14,10 +14,12 @@ How to run this?
 
 4, To run the Agentic RAG Chatbot (available only through Flask),
 >python flaskapp.py
+
 After which open http://127.0.0.1:5000/ in your browser to locally host and utilise the chatbot.
 
 5, To run the Static Agent Chatbot (available onlly through Streamlit), 
 >streamlit run app.py
+
 The app will open in a browser.
 (Note : There is also a sample.txt included just for the sake of testing)
 
