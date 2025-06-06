@@ -3,14 +3,19 @@ This project implements an **Agentic Retrieval-Augmented Generation (Agentic RAG
 There are TWO approaches included in this project, through Streamlit and Flask, apart from just the frontend implementation, these two approaches also have different workings. The Flask App has Agentic iterative query refinement loops to ensure the best output through calculating context sufficiency. The Streamlit app uses static agent modes, namely Auto, Reasoning, Summarise and Number Focused, so as to provide the option of picking how you want the chatbot to approach a query.
 
 How to run this?
+
 1, Clone the repository
 >git clone https://github.com/ishaansk/PlugNPlayRAG
+
 2, Install the requirements 
 >pip install -r requirements.txt
+
 3, Make a .env file in your same repository and include all the necessary APIs and Endpoints. To see which ones are needed, an env.txt is included, feel free to use it as a template. (Note : The Flask secret key can be any 48-character hex string)
+
 4, To run the Agentic RAG Chatbot (available only through Flask),
 >python flaskapp.py
 After which open http://127.0.0.1:5000/ in your browser to locally host and utilise the chatbot.
+
 5, To run the Static Agent Chatbot (available onlly through Streamlit), 
 >streamlit run app.py
 The app will open in a browser.
